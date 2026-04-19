@@ -3,46 +3,46 @@ import os
 from datetime import date
 from typing import Optional
 
-# Dosya ismini değiştirdik ki eski "oyun" verileriyle karışmasın, temiz bir profil açılsın
 DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "learning_analytics.json")
 
-# LEVEL yerine MILESTONE (Aşama) mantığına geçtik
 LEVELS = [
-    {"level": 1, "name": "Novice",       "icon": "🌱", "min_xp": 0},
-    {"level": 2, "name": "Intermediate", "icon": "🔍", "min_xp": 100},
-    {"level": 3, "name": "Proficient",   "icon": "📚", "min_xp": 300},
-    {"level": 4, "name": "Advanced",     "icon": "🎓", "min_xp": 600},
-    {"level": 5, "name": "Expert",       "icon": "⭐", "min_xp": 1000},
-    {"level": 6, "name": "Master",       "icon": "🏆", "min_xp": 2000},
+    {"level": 1, "name": "Novice",       "icon": "🌱", "min_mp": 0},
+    {"level": 2, "name": "Intermediate", "icon": "🔍", "min_mp": 100},
+    {"level": 3, "name": "Proficient",   "icon": "📚", "min_mp": 300},
+    {"level": 4, "name": "Advanced",     "icon": "🎓", "min_mp": 600},
+    {"level": 5, "name": "Expert",       "icon": "⭐", "min_mp": 1000},
+    {"level": 6, "name": "Master",       "icon": "🏆", "min_mp": 2000},
 ]
 
-# XP yerine MP (Mastery Points / Uzmanlık Puanı) mantığı
-XP_REWARDS = {
+MP_REWARDS = {
     "upload_document":      10,
     "ask_question":          5,
     "generate_summary":     15,
     "quiz_correct":         10,
     "quiz_perfect_bonus":   20,
     "daily_streak_bonus":    5,
+    "generate_mindmap":     15,  
+    "generate_flashcards":  15,
 }
 
-# BADGE (Rozet) yerine CERTIFICATIONS (Sertifikalar / Başarılar)
 ACHIEVEMENTS = [
-    {"id": "first_doc",      "icon": "📄", "name": "First Analysis",      "desc": "Upload and process your first document", "xp": 25},
-    {"id": "curious_10",     "icon": "🤔", "name": "Analytical Mind",     "desc": "Ask 10 questions to the AI",             "xp": 30},
-    {"id": "first_summary",  "icon": "⚡", "name": "Data Extractor",      "desc": "Generate your first summary",            "xp": 20},
-    {"id": "first_quiz",     "icon": "🎯", "name": "Knowledge Check",     "desc": "Complete your first self-assessment",    "xp": 20},
-    {"id": "perfect_quiz",   "icon": "💯", "name": "High Precision",      "desc": "Achieve 100% on an assessment",          "xp": 50},
-    {"id": "streak_3",       "icon": "🔥", "name": "Consistent Learner",  "desc": "Maintain a 3-day study streak",          "xp": 30},
-    {"id": "streak_7",       "icon": "⚡", "name": "Highly Dedicated",    "desc": "Maintain a 7-day study streak",          "xp": 75},
-    {"id": "quiz_master_5",  "icon": "🧪", "name": "Assessment Pro",      "desc": "Complete 5 assessments",                 "xp": 40},
-    {"id": "scholar_level",  "icon": "📚", "name": "Proficient Status",   "desc": "Reach Proficient milestone",             "xp": 0},
-    {"id": "expert_level",   "icon": "🎓", "name": "Advanced Status",     "desc": "Reach Advanced milestone",               "xp": 0},
+    {"id": "first_doc",      "icon": "📄", "name": "First Analysis",     "desc": "Upload and process your first document", "mp": 25},
+    {"id": "curious_10",     "icon": "🤔", "name": "Analytical Mind",    "desc": "Ask 10 questions to the AI",             "mp": 30},
+    {"id": "first_summary",  "icon": "⚡", "name": "Data Extractor",     "desc": "Generate your first summary",            "mp": 20},
+    {"id": "first_quiz",     "icon": "🎯", "name": "Knowledge Check",    "desc": "Complete your first self-assessment",    "mp": 20},
+    {"id": "perfect_quiz",   "icon": "💯", "name": "High Precision",     "desc": "Achieve 100% on an assessment",          "mp": 50},
+    {"id": "streak_3",       "icon": "🔥", "name": "Consistent Learner", "desc": "Maintain a 3-day study streak",          "mp": 30},
+    {"id": "streak_7",       "icon": "⚡", "name": "Highly Dedicated",   "desc": "Maintain a 7-day study streak",          "mp": 75},
+    {"id": "quiz_master_5",  "icon": "🧪", "name": "Assessment Pro",     "desc": "Complete 5 assessments",                 "mp": 40},
+    {"id": "scholar_level",  "icon": "📚", "name": "Proficient Status",  "desc": "Reach Proficient milestone",             "mp": 0},
+    {"id": "expert_level",   "icon": "🎓", "name": "Advanced Status",    "desc": "Reach Advanced milestone",               "xp": 0},
+    {"id": "first_mindmap",  "icon": "🕸️", "name": "Visual Thinker",     "desc": "Generate your first mind map",           "xp": 20},
+    {"id": "first_flashcard","icon": "📇", "name": "Memory Master",      "desc": "Generate smart flashcards",              "xp": 20},
 ]
 
 _DEFAULT = {
-    "total_xp": 0,
-    "today_xp": 0,
+    "total_mp": 0,
+    "today_mp": 0,
     "streak": 0,
     "last_active": "",
     "questions_asked": 0,
@@ -51,7 +51,7 @@ _DEFAULT = {
     "unlocked": [],
 }
 
-class GamificationManager:
+class LearningAnalytics:
     def __init__(self):
         self.data = self._load()
         self._update_streak()
@@ -84,37 +84,37 @@ class GamificationManager:
                 diff = (date.today() - last_date).days
                 if diff == 1:
                     self.data["streak"] += 1
-                    self.data["total_xp"] += XP_REWARDS["daily_streak_bonus"]
-                    self.data["today_xp"] = XP_REWARDS["daily_streak_bonus"]
+                    self.data["total_mp"] += MP_REWARDS["daily_streak_bonus"]
+                    self.data["today_mp"] = MP_REWARDS["daily_streak_bonus"]
                 elif diff > 1:
                     self.data["streak"] = 1
-                    self.data["today_xp"] = 0
+                    self.data["today_mp"] = 0
             except ValueError:
                 self.data["streak"] = 1
-                self.data["today_xp"] = 0
+                self.data["today_mp"] = 0
         else:
             self.data["streak"] = 1
-            self.data["today_xp"] = 0
+            self.data["today_mp"] = 0
         self.data["last_active"] = today
         self.save()
 
-    def award_xp(self, action: str, multiplier: float = 1.0) -> tuple[int, list]:
-        base = XP_REWARDS.get(action, 0)
+    def award_mp(self, action: str, multiplier: float = 1.0) -> tuple[int, list]:
+        base = MP_REWARDS.get(action, 0)
         amount = int(base * multiplier)
         if amount <= 0:
             return 0, []
-        self.data["total_xp"] += amount
-        self.data["today_xp"] = self.data.get("today_xp", 0) + amount
+        self.data["total_mp"] += amount
+        self.data["today_mp"] = self.data.get("today_mp", 0) + amount
         new_achievements = self._check_achievements()
         self.save()
         return amount, new_achievements
 
-    def award_quiz_xp(self, correct: int, total: int, multiplier: float = 1.0) -> tuple[int, list]:
-        amount = int(correct * XP_REWARDS["quiz_correct"] * multiplier)
+    def award_quiz_mp(self, correct: int, total: int, multiplier: float = 1.0) -> tuple[int, list]:
+        amount = int(correct * MP_REWARDS["quiz_correct"] * multiplier)
         if correct == total:
-            amount += XP_REWARDS["quiz_perfect_bonus"]
-        self.data["total_xp"] += amount
-        self.data["today_xp"] = self.data.get("today_xp", 0) + amount
+            amount += MP_REWARDS["quiz_perfect_bonus"]
+        self.data["total_mp"] += amount
+        self.data["today_mp"] = self.data.get("today_mp", 0) + amount
         self.data["quizzes_done"] = self.data.get("quizzes_done", 0) + 1
         new_achievements = self._check_achievements(quiz_perfect=(correct == total))
         self.save()
@@ -134,8 +134,8 @@ class GamificationManager:
                 new_unlocked.append(aid)
                 badge = next((a for a in ACHIEVEMENTS if a["id"] == aid), None)
                 if badge and badge["xp"] > 0:
-                    self.data["total_xp"] += badge["xp"]
-                    self.data["today_xp"] = self.data.get("today_xp", 0) + badge["xp"]
+                    self.data["total_mp"] += badge["xp"]
+                    self.data["today_mp"] = self.data.get("today_mp", 0) + badge["xp"]
 
         if self.data.get("docs_uploaded", 0) >= 1:
             unlock("first_doc")
@@ -157,6 +157,11 @@ class GamificationManager:
             unlock("scholar_level")
         if lvl["level"] >= 4:
             unlock("expert_level")
+        if self.data.get("mindmaps_generated", 0) >= 1:
+            unlock("first_mindmap")
+        if self.data.get("flashcards_generated", 0) >= 1:
+            unlock("first_flashcard")
+        
 
         self.data["unlocked"] = unlocked
         return new_unlocked
@@ -168,38 +173,38 @@ class GamificationManager:
             unlocked.append("first_summary")
             new_ach.append("first_summary")
             badge = next(a for a in ACHIEVEMENTS if a["id"] == "first_summary")
-            self.data["total_xp"] += badge["xp"]
-            self.data["today_xp"] = self.data.get("today_xp", 0) + badge["xp"]
+            self.data["total_mp"] += badge["xp"]
+            self.data["today_mp"] = self.data.get("today_mp", 0) + badge["xp"]
             self.data["unlocked"] = unlocked
-        amount, more = self.award_xp("generate_summary")
+        amount, more = self.award_mp("generate_summary")
         self.save()
         return amount, new_ach + more
 
     def get_level_info(self) -> tuple:
-        xp = self.data.get("total_xp", 0)
+        mp = self.data.get("total_mp", 0)
         current = LEVELS[0]
         for lvl in LEVELS:
-            if xp >= lvl["min_xp"]:
+            if mp >= lvl["min_mp"]:
                 current = lvl
         idx = LEVELS.index(current)
         next_lvl = LEVELS[idx + 1] if idx + 1 < len(LEVELS) else None
         if next_lvl:
-            xp_in = xp - current["min_xp"]
-            xp_need = next_lvl["min_xp"] - current["min_xp"]
+            xp_in = mp - current["min_mp"]
+            xp_need = next_lvl["min_mp"] - current["min_mp"]
             progress = min(xp_in / xp_need, 1.0)
         else:
-            xp_in = xp - current["min_xp"]
+            xp_in = mp - current["min_mp"]
             xp_need = 0
             progress = 1.0
         return current, next_lvl, xp_in, xp_need, progress
 
     @property
-    def total_xp(self) -> int:
-        return self.data.get("total_xp", 0)
+    def total_mp(self) -> int:
+        return self.data.get("total_mp", 0)
 
     @property
-    def today_xp(self) -> int:
-        return self.data.get("today_xp", 0)
+    def today_mp(self) -> int:
+        return self.data.get("today_mp", 0)
 
     @property
     def streak(self) -> int:

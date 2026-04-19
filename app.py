@@ -1,7 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
 import os
-
 import base64
 
 from core.pdf_processor import load_and_split
@@ -10,15 +9,13 @@ from core.rag_chain import build_rag_chain
 from core.summarizer import generate_summary
 from core.quiz_engine import generate_quiz
 from core.mind_map import generate_mind_map
-from core.gamification import GamificationManager, ACHIEVEMENTS
+from core.analytics import LearningAnalytics, ACHIEVEMENTS
 from streamlit_echarts import st_echarts
 from core.export_utils import export_to_pdf
 
 load_dotenv()
 
-api_key_1 = os.getenv("GOOGLE_API_KEY")
-api_key_2 = os.getenv("GOOGLE_API_KEY_2")
-
+api_key = os.getenv("GOOGLE_API_KEY")
 
 st.set_page_config(
     page_title="Lumina AI - Smart Learning Assistant",
@@ -40,7 +37,7 @@ st.markdown("""
     #MainMenu, footer { visibility: hidden; }
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
 
-/* ── Hero header ── */
+    /* ── Hero header ── */
     .lumina-header {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
         border: 1px solid rgba(99, 102, 241, 0.3);
@@ -95,7 +92,7 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* --- Logo (Parlayan Küre) Style --- */
+    /* ── Animated Glowing Orb Logo Style ── */
     .sidebar-logo-container {
         display: flex;
         justify-content: center;
@@ -103,7 +100,6 @@ st.markdown("""
         margin-top: 0.5rem;
     }
     
-    /* --- Gelişmiş Hareketli Logo Stili --- */
     @keyframes orb-pulse {
         0% { transform: scale(1); box-shadow: 0 0 20px rgba(244, 114, 182, 0.4); }
         50% { transform: scale(1.08); box-shadow: 0 0 35px rgba(244, 114, 182, 0.7); }
@@ -113,13 +109,6 @@ st.markdown("""
     @keyframes brain-float {
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-3px); }
-    }
-
-    .sidebar-logo-container {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 0.5rem;
-        margin-top: 0.5rem;
     }
     
     .glow-orb {
@@ -134,20 +123,16 @@ st.markdown("""
         border: 2px solid rgba(255, 255, 255, 0.2);
         cursor: pointer;
         transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        
-        /* Nefes alma animasyonunu başlatıyoruz */
         animation: orb-pulse 3s infinite ease-in-out;
     }
 
     .glow-orb span {
-        /* İçerideki beyin ikonuna hafif yüzme efekti */
         animation: brain-float 2.5s infinite ease-in-out;
         display: inline-block;
     }
 
-    /* Etkileşim: Mouse ile üzerine gelindiğinde (Hover) */
     .glow-orb:hover {
-        transform: scale(1.2) rotate(15deg); /* Büyü ve hafifçe dön */
+        transform: scale(1.2) rotate(15deg); 
         filter: brightness(1.2);
         box-shadow: 0 0 45px rgba(167, 139, 250, 0.8);
         border-color: rgba(255, 255, 255, 0.5);
@@ -389,7 +374,7 @@ st.markdown("""
         border-color: rgba(99,102,241,0.3) !important;
     }
 
-    /* ── Gamification ── */
+    /* ── Mastery Points ── */
     .level-badge {
         display: flex;
         align-items: center;
@@ -402,9 +387,9 @@ st.markdown("""
     }
     .level-icon { font-size: 1.8rem; line-height: 1; }
     .level-name { font-size: 1rem; font-weight: 700; color: #c084fc; }
-    .level-xp   { font-size: 0.75rem; color: #94a3b8; margin-top: 0.1rem; }
+    .level-mp   { font-size: 0.75rem; color: #94a3b8; margin-top: 0.1rem; }
 
-    .xp-bar-wrap {
+    .mp-bar-wrap {
         background: #1e1e30;
         border: 1px solid rgba(99,102,241,0.25);
         border-radius: 8px;
@@ -413,14 +398,14 @@ st.markdown("""
         font-size: 0.8rem;
         color: #94a3b8;
     }
-    .xp-bar-track {
+    .mp-bar-track {
         background: #0f0f1a;
         border-radius: 4px;
         height: 8px;
         margin-top: 0.4rem;
         overflow: hidden;
     }
-    .xp-bar-fill {
+    .mp-bar-fill {
         height: 100%;
         border-radius: 4px;
         background: linear-gradient(90deg, #6366f1, #c084fc);
@@ -460,7 +445,7 @@ st.markdown("""
         white-space: nowrap;
     }
 
-    .xp-toast {
+    .mp-toast {
         display: inline-block;
         background: linear-gradient(135deg, #4c1d95, #1e3a5f);
         border: 1px solid rgba(129,140,248,0.4);
@@ -491,7 +476,7 @@ def init_session():
         "doc_name": None,
         "doc_pages": 0,
         "doc_chunks": 0,
-        "xp_notification": None,
+        "mp_notification": None,
         "raw_files": {},
         "flashcards": [],         
         "current_card_idx": 0,    
@@ -500,8 +485,8 @@ def init_session():
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
-    if "gm" not in st.session_state:
-        st.session_state.gm = GamificationManager()
+    if "analytics" not in st.session_state:
+        st.session_state.analytics = LearningAnalytics()
 
     if "flashcard_stats" not in st.session_state:
         st.session_state.flashcard_stats = {"Hard": 0, "Good": 0, "Easy": 0}
@@ -518,21 +503,28 @@ def reset_document_state():
     st.session_state["current_card_idx"] = 0
     st.session_state["card_flipped"] = False
 
-
 init_session()
+
+def handle_api_error(e):
+    """Handles API-related errors centrally to keep code DRY."""
+    error_msg = str(e)
+    if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+        st.error("⚠️ API quota exceeded. Please wait a moment or switch to your backup API key.")
+    else:
+        st.error(f"System Error: {error_msg}")
 
 
 # ── HEADER ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-.lumina-title {
+    .lumina-title {
     margin-bottom: 2px !important;
-}
+    }
 
-.lumina-subtitle {
+    .lumina-subtitle {
     margin-top: 0px !important;
     line-height: 1.2;
-}
+    }
 </style>
 
 <div class="lumina-header">
@@ -541,16 +533,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── (Insight Points) IP NOTIFICATION ─────────────────────────────────────────────────────────
-if st.session_state.get("xp_notification"):
-    xp_val, new_ach = st.session_state.xp_notification
-    st.session_state.xp_notification = None
-    if xp_val > 0:
-        st.toast(f"+ {xp_val} Insight Points (IP) gained!", icon="✨")
+# ── MASTERY POINTS NOTIFICATION ─────────────────────────────────────────────────────────
+if st.session_state.get("mp_notification"):
+    mp_val, new_ach = st.session_state.mp_notification
+    st.session_state.mp_notification = None
+    if mp_val > 0:
+        st.toast(f"+ {mp_val} Insight Points (IP) gained!", icon="✨")
     for aid in new_ach:
         badge = next((a for a in ACHIEVEMENTS if a["id"] == aid), None)
         if badge:
-            st.toast(f"{badge['icon']} Badge unlocked: {badge['name']} (+{badge['xp']} IP)", icon="🏅")
+            st.toast(f"{badge['icon']} Badge unlocked: {badge['name']} (+{badge['mp']} IP)", icon="🏅")
 
 
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────
@@ -567,18 +559,6 @@ with st.sidebar:
     st.markdown('<div class="sidebar-brand">LUMINA AI</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-tagline">INTELLIGENT LEARNING</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### ⚙️ Settings")
-    
-    api_choice = st.radio(
-        "Active API Key", 
-        ["Key 1 (Main)", "Key 2 (Backup)"], 
-        horizontal=True,
-        label_visibility="collapsed"
-    )
-
-    active_api_key = api_key_2 if "2" in api_choice else api_key_1
     
     st.markdown("---")
     st.markdown("## 📄 Document")
@@ -615,14 +595,17 @@ with st.sidebar:
                         
                         docs = load_and_split(file_bytes, file.name)
                         all_docs.extend(docs) 
-                        
                         doc_names.append(file.name)
 
                         pages = docs[0].metadata.get("total_pages", 1) if docs else 0
                         total_pages += pages
 
-                    vs = create_vector_store(all_docs, active_api_key)
-                    chain = build_rag_chain(vs, active_api_key)
+                    if "analytics" in st.session_state:
+                        st.session_state.analytics.increment_counter("docs_uploaded")
+                        st.session_state.analytics.award_mp("upload_document")
+                    
+                    vs = create_vector_store(all_docs, api_key)
+                    chain = build_rag_chain(vs, api_key)
 
                     st.session_state.documents = all_docs
                     st.session_state.vector_store = vs
@@ -652,91 +635,112 @@ with st.sidebar:
             <span style="font-size: 1rem;">📄</span>
             <span style="color: #94a3b8; font-size: 1rem; margin: 0; font-weight: 500;">Files</span>
         </div>
-        <h3 style="color: #f8fafc; margin: 0; font-size: 1.3rem;">{file_count}</h3>
+        <h3 style="color: #f8fafc; margin: 0; margin-right: 20px; font-size: 1.3rem;">{file_count}</h3>
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; background-color: #1e1e2f; padding: 1px 1px; border-radius: 8px; border-left: 8px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div style="display: flex; align-items: center; gap: 5px;">
             <span style="font-size: 1rem;">📑</span>
             <span style="color: #94a3b8; font-size: 1rem; margin: 0; font-weight: 500;">Pages</span>
         </div>
-        <h3 style="color: #f8fafc; margin: 0; font-size: 1.3rem;">{st.session_state.doc_pages}</h3>
+        <h3 style="color: #f8fafc; margin: 0; margin-right: 20px; font-size: 1.3rem;">{st.session_state.doc_pages}</h3>
     </div>
     <div style="display: flex; justify-content: space-between; align-items: center; background-color: #1e1e2f; padding: 1px 1px; border-radius: 8px; border-left: 8px solid #10b981; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <div style="display: flex; align-items: center; gap: 5px;">
             <span style="font-size: 1rem;">🧩</span>
             <span style="color: #94a3b8; font-size: 1rem; margin: 0; font-weight: 500;">Chunks</span>
         </div>
-        <h3 style="color: #f8fafc; margin: 0; font-size: 1.3rem;">{st.session_state.doc_chunks}</h3>
+        <h3 style="color: #f8fafc; margin: 0; margin-right: 20px; font-size: 1.3rem;">{st.session_state.doc_chunks}</h3>
     </div>
 </div>
 <br>
 """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("## 🏆 Your Progress")
-
+    st.markdown("## 🏆 Your Progress") 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # GÜVENLİ KONTROL: Eğer gm (GamificationManager) tanımlıysa değerleri al, yoksa 0 varsay
-    current_xp = st.session_state.gm.xp if "gm" in st.session_state and hasattr(st.session_state.gm, 'xp') else 1250
-    current_level = st.session_state.gm.level if "gm" in st.session_state and hasattr(st.session_state.gm, 'level') else 3
-    next_level_xp = current_level * 1000 # Örnek bir sonraki seviye hedefi
-    progress_pct = int((current_xp / next_level_xp) * 100) if next_level_xp > 0 else 0
-
-    # PROFESYONEL ÖĞRENME METRİKLERİ TASARIMI
-    st.markdown(f"""
-<div style="background-color: #1e1e30; border: 1px solid #334155; border-radius: 12px; padding: 1.2rem; margin-bottom: 2rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="color: #cbd5e1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Mastery Level {current_level}</span>
-        <span style="color: #818cf8; font-size: 0.85rem; font-weight: bold;">{current_xp} MP</span>
+    if "analytics" in st.session_state:
+        current_mp = st.session_state.analytics.total_mp
+        streak_days = st.session_state.analytics.streak
+        quizzes = st.session_state.analytics.data.get("quizzes_done", 0)
+        docs = st.session_state.analytics.data.get("docs_uploaded", 0)
+        
+        current_lvl, next_lvl, mp_in, mp_need, progress_pct = st.session_state.analytics.get_level_info()
+        pct = int(progress_pct * 100)
+        level_name = current_lvl["name"]
+        
+        st.markdown(f"""
+<div style="background-color: #1e1e30; border: 1px solid #334155; border-radius: 12px; padding: 1.2rem; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+    <span style="color: #cbd5e1; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">{level_name}</span>
+    <span style="color: #818cf8; font-size: 0.85rem; font-weight: bold;">{current_mp} MP</span>
 </div>
     
 <div style="width: 100%; background-color: #334155; border-radius: 4px; height: 6px; margin-bottom: 12px;">
-        <div style="background: linear-gradient(90deg, #6366f1, #a855f7); height: 6px; border-radius: 4px; width: {progress_pct}%;"></div>
+    <div style="background: linear-gradient(90deg, #6366f1, #a855f7); height: 6px; border-radius: 4px; width: {pct}%;"></div>
 </div>
     
 <div style="display: flex; justify-content: space-between; color: #64748b; font-size: 0.75rem;">
-        <span>Current Focus</span>
-        <span>{next_level_xp - current_xp} MP to next milestone</span>
+    <span>Mastery Progress</span>
+    <span>{mp_need - mp_in} MP to next rank</span>
 </div>
     
 <hr style="border-color: #334155; margin: 12px 0;">
     
 <div style="display: flex; justify-content: space-between;">
-        <div style="text-align: center;">
-            <div style="font-size: 1.2rem;">🔥</div>
-            <div style="color: #94a3b8; font-size: 0.7rem;">3 Day Streak</div>
-        </div>
-        <div style="text-align: center;">
-            <div style="font-size: 1.2rem;">🎯</div>
-            <div style="color: #94a3b8; font-size: 0.7rem;">8 Quizzes</div>
-        </div>
-        <div style="text-align: center;">
-            <div style="font-size: 1.2rem;">📚</div>
-            <div style="color: #94a3b8; font-size: 0.7rem;">12 Docs</div>
-        </div>
+    <div style="text-align: center;">
+        <div style="font-size: 1.2rem;">🔥</div>
+        <div style="color: #94a3b8; font-size: 0.7rem;">{streak_days} Days</div>
+    </div>
+    <div style="text-align: center;">
+        <div style="font-size: 1.2rem;">🎯</div>
+        <div style="color: #94a3b8; font-size: 0.7rem;">{quizzes} Tests</div>
+    </div>
+    <div style="text-align: center;">
+        <div style="font-size: 1.2rem;">📚</div>
+        <div style="color: #94a3b8; font-size: 0.7rem;">{docs} Docs</div>
     </div>
 </div>
-    """, unsafe_allow_html=True)
-
-
-    st.markdown("---")
-    st.markdown("## 🎓 About")
-    st.markdown("""
-<div style="color:#64748b; font-size:0.82rem; line-height:1.6;">
-Lumina AI transforms static documents into interactive learning experiences.
-<br><br>
-<b style="color:#818cf8;">Features:</b><br>
-• RAG-powered Q&A with citations<br>
-• One-click summaries &amp; glossary<br>
-• Adaptive quiz engine<br>
-• All language support
-<br><br>
-<b style="color:#818cf8;">Team:</b><br>
-İrem Yılmaz<br>
-Hande Reyyan Fidan
 </div>
 """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("## 🌌 System Info")
+    st.markdown("""
+<div style="background-color: #1e1e30; border: 1px solid #334155; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    
+<div style="color: #e2e8f0; font-size: 0.82rem; line-height: 1.5; margin-bottom: 1rem;">
+    <b>Lumina AI</b> is an intelligent academic workspace engineered to transform static study materials into dynamic, data-driven learning experiences.
+</div>
+
+<div style="color: #818cf8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.6rem;">Core Modules</div>
+
+<div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 1.2rem;">
+    <div style="display: flex; align-items: center; gap: 8px;"><span>🧠</span> RAG-Powered Q&A & Citation</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>📊</span> Mastery Analytics Dashboard</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>📇</span> Leitner Flashcard Engine</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>🕸️</span> Neural Mind Mapping</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>🧪</span> Adaptive Assessment</div>
+</div>
+
+<div style="color: #818cf8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.6rem;">Engineered By</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.75rem; color: #e2e8f0;">
+    <div style="background: rgba(99,102,241,0.15); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.3);">
+        👩‍💻 İrem Yılmaz
+    </div>
+    <div style="background: rgba(99,102,241,0.15); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.3);">
+        👩‍💻 Hande Reyyan Fidan
+    </div>
+</div>
+
+<hr style="border-color: #334155; margin: 15px 0 10px 0;">
+
+<div style="text-align: center; color: #64748b; font-size: 0.7rem; line-height: 1.4;">
+    Powered by Google Gemini
+</div>
+</div>
+    """, unsafe_allow_html=True)
 
 
 # ── MAIN AREA ────────────────────────────────────────────────────────────────
@@ -861,19 +865,14 @@ with tab_chat:
                         "answer": answer,
                         "pages": pages,
                     })
-                    gm = st.session_state.gm
-                    gm.increment_counter("questions_asked")
-                    xp_gained, new_ach = gm.award_xp("ask_question")
-                    st.session_state.xp_notification = (xp_gained, new_ach)
+                    analytics = st.session_state.analytics
+                    analytics.increment_counter("questions_asked")
+                    mp_gained, new_ach = analytics.award_mp("ask_question")
+                    st.session_state.mp_notification = (mp_gained, new_ach)
                     st.rerun()
 
                 except Exception as e:
-                    error_msg = str(e)
-                    if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-                        st.error("⚠️ API quota exceeded. Please wait a moment or switch to your backup API key.")
-                    else:
-                        st.error(f"An error occurred: {error_msg}")
-
+                    handle_api_error(e)
 
 
 # ── TAB 2: SUMMARY ──────────────────────────────────────────────────────────
@@ -902,15 +901,10 @@ with tab_summary:
     if gen_sum_btn:
         with st.spinner(f"Generating {summary_len.lower()} summary..."):
             try:
-                st.session_state.summary = generate_summary(st.session_state.documents, active_api_key, summary_len)
+                st.session_state.summary = generate_summary(st.session_state.documents, api_key, summary_len)
 
             except Exception as e:
-                error_msg = str(e)
-                if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-                    st.error("⚠️ API quota exceeded. Please wait a moment or switch to your backup API key.")
-                else:
-                    st.error(f"Error generating summary: {error_msg}")
-
+                handle_api_error(e)
 
     if st.session_state.summary:
         st.markdown(st.session_state.summary)
@@ -923,10 +917,8 @@ with tab_summary:
         with col_export:
             try:
                 from core.export_utils import export_to_pdf
-                # PDF verisini hazırlıyoruz
                 summary_pdf = export_to_pdf(st.session_state.summary, f"Document Summary ({summary_len})")
                 
-                # Şık, ikonlu ve ortalanmış buton
                 st.download_button(
                     label="📥 Export Summary as PDF",
                     data=bytes(summary_pdf),
@@ -936,7 +928,7 @@ with tab_summary:
                     help="Click to download this summary as a professional PDF report"
                 )
             except Exception as e:
-                st.error(f"Export Error: {e}")
+                handle_api_error(e)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -976,13 +968,13 @@ with tab_quiz:
         with st.spinner("Creating quiz questions…"):
             try:
                 diff_mapping = {
-                    "Easy": {"mult": 1.0, "css": "difficulty-easy"},
+                    "Easy":   {"mult": 1.0, "css": "difficulty-easy"},
                     "Medium": {"mult": 1.5, "css": "difficulty-medium"},
-                    "Hard": {"mult": 2.0, "css": "difficulty-hard"}
+                    "Hard":   {"mult": 2.0, "css": "difficulty-hard"}
                 }
                 diff_dict = diff_mapping[selected_diff]
 
-                questions = generate_quiz(st.session_state.documents, active_api_key, selected_num)
+                questions = generate_quiz(st.session_state.documents, api_key, selected_num)
                 
                 if questions:
                     st.session_state.quiz = questions
@@ -990,13 +982,13 @@ with tab_quiz:
                     st.session_state.quiz_submitted = False
                     st.session_state["quiz_difficulty"] = diff_dict
 
-                    # Premium versiyon (Sağ alttan zarifçe çıkar 3 saniye sonra silinir):
                     st.toast("Quiz completed successfully!", icon="🎉")
 
                 else:
                     st.error("Could not generate quiz questions. Please try again.")
+            
             except Exception as e:
-                st.error(f"Error: {e}")
+                handle_api_error(e)
 
     if st.session_state.quiz:
         questions = st.session_state.quiz
@@ -1013,12 +1005,12 @@ with tab_quiz:
             emoji = "🏆" if pct >= 80 else "👍" if pct >= 60 else "📖"
             msg = "Excellent work!" if pct >= 80 else "Good effort!" if pct >= 60 else "Keep studying!"
 
-            xp_earned = int(correct * 10 * q_diff["mult"]) + (20 if correct == total else 0)
+            mp_earned = int(correct * 10 * q_diff["mult"]) + (20 if correct == total else 0)
             st.markdown(f"""
 <div class="score-banner">
     <div class="score-number">{emoji} {correct}/{total}</div>
     <div class="score-label">{pct}% · {msg}</div>
-    <div style="margin-top:0.5rem; font-size:0.85rem; color:#818cf8;">+{xp_earned} IP earned this quiz</div>
+    <div style="margin-top:0.5rem; font-size:0.85rem; color:#818cf8;">+{mp_earned} IP earned this quiz</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1091,9 +1083,9 @@ with tab_quiz:
                     else:
                         correct_count = sum(1 for i, q in enumerate(questions) if st.session_state.quiz_answers.get(i) == q.get("correct_answer"))
                         mult = st.session_state.get("quiz_difficulty", {}).get("mult", 1.0)
-                        if "gm" in st.session_state:
-                            xp_gained, new_ach = st.session_state.gm.award_quiz_xp(correct_count, total, mult)
-                            st.session_state.xp_notification = (xp_gained, new_ach)
+                        if "analytics" in st.session_state:
+                            mp_gained, new_ach = st.session_state.analytics.award_quiz_mp(correct_count, total, mult)
+                            st.session_state.mp_notification = (mp_gained, new_ach)
                         st.session_state.quiz_submitted = True
                         st.rerun()
 
@@ -1153,16 +1145,16 @@ with tab_map:
     if generate_map_btn:
         with st.spinner("Analyzing document structure..."):
             try:
-                map_data = generate_mind_map(st.session_state.documents, active_api_key)
+                map_data = generate_mind_map(st.session_state.documents, api_key)
                 st.session_state.mind_map = map_data
 
+                if "analytics" in st.session_state:
+                    st.session_state.analytics.increment_counter("mindmaps_generated")
+                    mp_gained, new_ach = st.session_state.analytics.award_mp("generate_mindmap")
+                    st.session_state.mp_notification = (mp_gained, new_ach)
+                        
             except Exception as e:
-                error_msg = str(e)
-                if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-                    st.error("⚠️ API limit reached while building the mind map. Try switching API keys.")
-                else:
-                    st.error(f"Error generating mind map: {error_msg}")
-
+                handle_api_error(e)
 
     if st.session_state.get("mind_map"):
         st.markdown("<br>", unsafe_allow_html=True)
@@ -1249,63 +1241,70 @@ with tab_map:
             st_echarts(options, height="850px")
     
 
-
-# ── TAB 6: FLASHCARDS (LEITNER SYSTEM) ────────────────────────────────────────
+# ── TAB 6: FLASHCARDS ────────────────────────────────────────
 with tab_cards:
     
     if not st.session_state.get("flashcards"):
-        # --- KARTLAR OLUŞTURULMADIYSA: Başlık, Sayı Seçici ve Buton ---
-        # Ekranı 3'e bölüyoruz: [Geniş Başlık, Dar Input, Orta Buton]
         col_title, col_input, col_action = st.columns([2.5, 0.8, 1.2])
         
         with col_title:
-            st.markdown("### 📇 Flashcards & Learning Progress")
+            st.markdown("### 📇 Flashcards")
             st.caption("Master concepts with the scientifically proven Leitner Spaced Repetition system.")
             
         with col_input:
-            # Kullanıcıdan kart sayısını alıyoruz (Min:5, Max:30, Varsayılan:12)
-            num_cards_to_gen = st.number_input("Number of Cards", min_value=5, max_value=30, value=12, step=1)
-            
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+            num_cards = st.number_input("Number of cards", min_value=5, max_value=30, value=12, step=1)
+
         with col_action:
-            # Butonu input kutusuyla aynı yatay hizaya indirmek için CSS ile margin veriyoruz
-            st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-            
+            st.markdown("<div style='margin-top: 40px;'></div>", unsafe_allow_html=True)
             if st.button("✨ Generate Cards", use_container_width=True):
-                with st.spinner(f"Extracting {num_cards_to_gen} concepts..."):
-                    from core.flashcard_engine import generate_flashcards
-                    # Sabit 12 yerine kullanıcının seçtiği sayıyı (num_cards_to_gen) gönderiyoruz
-                    cards = generate_flashcards(st.session_state.documents, active_api_key, num_cards=num_cards_to_gen)
-                    if cards:
-                        st.session_state.flashcards = cards
-                        st.session_state.current_card_idx = 0
-                        st.session_state.card_flipped = False
-                        st.session_state.flashcard_stats = {"Hard": 0, "Good": 0, "Easy": 0}
-                        st.rerun()
-        
+                with st.spinner("Extracting concepts..."):
+                    try:
+                        from core.flashcard_engine import generate_flashcards
+                        cards = generate_flashcards(st.session_state.documents, api_key, num_cards=num_cards)
+                        if cards:
+                            st.session_state.flashcards = cards
+                            st.session_state.current_card_idx = 0
+                            st.session_state.card_flipped = False
+                            st.session_state.flashcard_stats = {"Hard": 0, "Good": 0, "Easy": 0}
+                            
+                            if "analytics" in st.session_state:
+                                st.session_state.analytics.increment_counter("flashcards_generated")
+                                mp_gained, new_ach = st.session_state.analytics.award_mp("generate_flashcards")
+                                st.session_state.mp_notification = (mp_gained, new_ach)
+                            st.rerun()
+                    except Exception as e:
+                        handle_api_error(e)
+    
     else:
-        st.markdown("### 📇 Flashcards & Learning Progress")
-        st.caption("Master concepts with the scientifically proven Leitner Spaced Repetition system.")
-        
         import datetime
         today_str = datetime.datetime.now().date().isoformat()
+        
         due_cards = [(i, card) for i, card in enumerate(st.session_state.flashcards) if card["next_review"] <= today_str]
 
         if not due_cards:
-            st.success("🎉 All caught up! No cards are due for review today. Great job! 🎉")
+            st.success("🎉 All caught up! No cards are due for review today. Great job!")
             st.info(f"Session Results: 🔴 {st.session_state.flashcard_stats['Hard']} Hard | 🟡 {st.session_state.flashcard_stats['Good']} Good | 🟢 {st.session_state.flashcard_stats['Easy']} Easy")
-            if st.button("Reset All Cards (Demo Mode)"):
+            
+            st.markdown("""
+                <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⌛</div>
+                    <p>The system is scheduling your next review sessions.</p>
+                    <p style="font-size: 0.8rem;">Your progress is saved. Come back tomorrow for new cards.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            with st.expander("🔍 View Card Collection (Read-Only)"):
                 for c in st.session_state.flashcards:
-                    c["box"] = 1
-                    c["next_review"] = today_str
-                st.rerun()
+                    st.write(f"**{c['term']}**: {c['definition']}")
+
         else:
-            # --- 2. İLERLEME GÖSTERGESİ (Korundu) ---
             total_due = len(due_cards)
             current_pos = (st.session_state.current_card_idx % total_due) + 1
             
             col_info_1, col_info_2 = st.columns([1, 1])
             with col_info_1:
-                st.caption(f"Card {current_pos} of {total_due}")
+                st.caption(f"Reviewing {current_pos} of {total_due} due cards")
             with col_info_2:
                 st.markdown(f"<div style='text-align:right; font-size:0.8rem;'>🔴 {st.session_state.flashcard_stats['Hard']} &nbsp; 🟡 {st.session_state.flashcard_stats['Good']} &nbsp; 🟢 {st.session_state.flashcard_stats['Easy']}</div>", unsafe_allow_html=True)
             
@@ -1313,69 +1312,27 @@ with tab_cards:
 
             original_idx, current_card = due_cards[current_pos - 1]
             
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            # --- 3. GERİ GETİRİLEN 3D FLIP KART TASARIMI ---
             flip_class = "is-flipped" if st.session_state.card_flipped else ""
-            _, col_card, _ = st.columns([1, 2, 1]) # Kartı tam ortaya sabitledik
-            
+            _, col_card, _ = st.columns([1, 2, 1]) 
             with col_card:
-                # 3D Dönme Efekti İçin CSS
                 st.markdown(f"""
                 <style>
-                .flashcard-scene {{
-                    width: 100%;
-                    max-width: 500px; 
-                    height: 300px;    
-                    perspective: 1000px;
-                    margin: 0 auto;
-                }}
-                .flashcard-inner {{
-                    width: 100%;
-                    height: 100%;
-                    position: relative;
-                    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-                    transform-style: preserve-3d;
-                }}
-                .flashcard-inner.is-flipped {{
-                    transform: rotateY(180deg);
-                }}
-                .flashcard-face {{
-                    position: absolute;
-                    width: 100%;
-                    height: 100%;
-                    backface-visibility: hidden;
-                    border-radius: 20px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    align-items: center;
-                    padding: 2rem;
-                    text-align: center;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                    overflow-y: auto;
-                }}
-                .flashcard-front {{
-                    background: linear-gradient(135deg, #1e1e2f, #2a2a4a);
-                    border: 2px solid #6366f1;
-                }}
-                .flashcard-back {{
-                    background: linear-gradient(135deg, #2a2a4a, #1e1e2f);
-                    border: 2px solid #10b981;
-                    transform: rotateY(180deg);
-                }}
+                .flashcard-scene {{ width: 100%; max-width: 500px; height: 300px; perspective: 1000px; margin: 0 auto; }}
+                .flashcard-inner {{ width: 100%; height: 100%; position: relative; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; }}
+                .flashcard-inner.is-flipped {{ transform: rotateY(180deg); }}
+                .flashcard-face {{ position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow-y: auto; }}
+                .flashcard-front {{ background: linear-gradient(135deg, #1e1e2f, #2a2a4a); border: 2px solid #6366f1; }}
+                .flashcard-back {{ background: linear-gradient(135deg, #2a2a4a, #1e1e2f); border: 2px solid #10b981; transform: rotateY(180deg); }}
                 </style>
-
                 <div class="flashcard-scene">
                     <div class="flashcard-inner {flip_class}">
                         <div class="flashcard-face flashcard-front">
                             <div style="position:absolute; top:15px; right:20px; background:rgba(99,102,241,0.2); padding:2px 10px; border-radius:10px; font-size:0.7rem; color:#818cf8;">BOX {current_card['box']}</div>
-                            <h2 style="color: #f8fafc; font-size: 2rem; margin: 0;">{current_card['term']}</h2>
+                            <h2 style="color: #f8fafc; font-size: 2rem;">{current_card['term']}</h2>
                         </div>
                         <div class="flashcard-face flashcard-back">
-                            <div style="color: #34d399; font-size: 0.85rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.5rem;">Definition</div>
-                            <h3 style="color: #f8fafc; font-size: 1.4rem; margin-bottom: 1rem;">{current_card['term']}</h3>
-                            <p style="color: #cbd5e1; font-size: 1.05rem; line-height: 1.5; margin: 0;">{current_card['definition']}</p>
+                            <h3 style="color: #34d399; font-size: 1.4rem;">{current_card['term']}</h3>
+                            <p style="color: #cbd5e1; font-size: 1.05rem;">{current_card['definition']}</p>
                         </div>
                     </div>
                 </div>
@@ -1383,30 +1340,20 @@ with tab_cards:
                 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 4. YENİ BUTON DİZİLİMİ (Önceki Kart Eklendi) ---
                 if not st.session_state.card_flipped:
-                    # Kart ön yüzündeyken: [Geri] [Çevir] [Boşluk]
-                    col_prev, col_flip, col_empty = st.columns([1, 2, 1])
-                    
-                    with col_prev:
-                        # Eğer ilk kartta değilsek Geri butonunu göster
+                    c_prev, c_flip, c_empty = st.columns([1, 2, 1])
+                    with c_prev:
                         if st.session_state.current_card_idx > 0:
                             if st.button("⬅️ Back", use_container_width=True):
                                 st.session_state.current_card_idx -= 1
-                                st.session_state.card_flipped = False
                                 st.rerun()
-                                
-                    with col_flip:
+                    with c_flip:
                         if st.button("🔄 Flip Card", use_container_width=True):
                             st.session_state.card_flipped = True
                             st.rerun()
                 else:
-                    # Kart arka yüzündeyken: Leitner değerlendirme butonları
-                    st.markdown("<div style='text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 10px;'>How well did you know this?</div>", unsafe_allow_html=True)
-                    
                     c1, c2, c3 = st.columns(3)
                     today_date = datetime.datetime.now().date()
-                    
                     with c1:
                         if st.button("🔴 Hard", use_container_width=True):
                             st.session_state.flashcard_stats["Hard"] += 1
