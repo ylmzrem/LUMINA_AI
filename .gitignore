@@ -1,0 +1,13 @@
+# API Key'lerin bulunduğu dosya (varsa)
+.env
+
+# Senin denemelerinden kalan kişisel istatistiklerin
+learning_analytics.json
+
+# Python önbellek dosyaları (Hocada hata çıkmasını önler)
+__pycache__/
+*.pyc
+
+# Sanal ortam klasörleri
+venv/
+env/

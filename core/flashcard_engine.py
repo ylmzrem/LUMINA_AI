@@ -31,15 +31,13 @@ def generate_flashcards(documents: List[Document], api_key: str, num_cards: int 
     
     response = llm.invoke(prompt)
     
-    # JSON verisini metinden temizleyip çıkarıyoruz
     clean_text = response.content.replace("```json", "").replace("```", "").strip()
     try:
         cards = json.loads(clean_text)
-        # Leitner Sistemi için gerekli varsayılan ayarları her karta ekliyoruz
         today = datetime.datetime.now().date()
         for card in cards:
-            card["box"] = 1 # Herkes 1. kutudan başlar
-            card["next_review"] = today.isoformat() # Bugün çalışılacak
+            card["box"] = 1 
+            card["next_review"] = today.isoformat() 
         return cards
     except Exception as e:
         print(f"JSON Parse Error: {e}")

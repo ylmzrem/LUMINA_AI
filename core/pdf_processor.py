@@ -9,12 +9,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from typing import List
 
-# OCR (El yazısı/Tarama okuma) 
 try:
     import pytesseract
     from PIL import Image
 
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'    
+    tesseract_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path 
 
     OCR_AVAILABLE = True
 except ImportError:
@@ -33,11 +34,9 @@ def load_pdf(file_bytes: bytes, filename: str) -> List[Document]:
             page = pdf[page_num]
             text = page.get_text("text")
             
-            # EĞER METİN YOKSA VEYA ÇOK AZSA (Yani bu bir el yazısı veya fotoğrafsa) VE OCR YÜKLÜYSE
             if len(text.strip()) < 50 and OCR_AVAILABLE:
                 pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Çözünürlüğü artır
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                # Tesseract ile görüntüden el yazısını/metni çıkar
                 text = pytesseract.image_to_string(img, lang="tur+eng")
 
             if text.strip():
@@ -94,7 +93,6 @@ def split_documents(documents: List[Document], chunk_size: int = 1000, chunk_ove
 def load_and_split(file_bytes: bytes, filename: str) -> List[Document]:
     ext = filename.lower().split('.')[-1]
     
-    # Uzantıya göre doğru okuyucu fonksiyonu seçiyoruz
     if ext == "pdf":
         raw_docs = load_pdf(file_bytes, filename)
     elif ext == "docx":
