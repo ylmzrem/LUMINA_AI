@@ -1,10 +1,10 @@
-# API Key'lerin bulunduğu dosya (varsa)
+# API Key'lerin bulunduğu dosya
 .env
 
-# Senin denemelerinden kalan kişisel istatistiklerin
+# kişisel istatistikler ve öğrenme analizleri dosyası
 learning_analytics.json
 
-# Python önbellek dosyaları (Hocada hata çıkmasını önler)
+# Python önbellek dosyaları
 __pycache__/
 *.pyc
 

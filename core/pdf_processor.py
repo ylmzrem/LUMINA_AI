@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import fitz 
 import tempfile
 import os
 import io
@@ -35,7 +35,7 @@ def load_pdf(file_bytes: bytes, filename: str) -> List[Document]:
             text = page.get_text("text")
             
             if len(text.strip()) < 50 and OCR_AVAILABLE:
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) # Çözünürlüğü artır
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2)) 
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 text = pytesseract.image_to_string(img, lang="tur+eng")
 

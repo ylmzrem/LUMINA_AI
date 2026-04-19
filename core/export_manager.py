@@ -7,7 +7,7 @@ def create_pdf_report(content, title="Study Report"):
     
     pdf.set_font("Helvetica", "B", 20)
     
-    pdf.set_text_color(99, 102, 241) # Lumina Moru
+    pdf.set_text_color(99, 102, 241) 
     pdf.cell(0, 10, "Lumina AI - Study Guide", ln=True, align="C")
     
     pdf.set_font("Helvetica", "I", 10)
