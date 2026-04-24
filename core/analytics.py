@@ -35,9 +35,9 @@ ACHIEVEMENTS = [
     {"id": "streak_7",       "icon": "⚡", "name": "Highly Dedicated",   "desc": "Maintain a 7-day study streak",          "mp": 75},
     {"id": "quiz_master_5",  "icon": "🧪", "name": "Assessment Pro",     "desc": "Complete 5 assessments",                 "mp": 40},
     {"id": "scholar_level",  "icon": "📚", "name": "Proficient Status",  "desc": "Reach Proficient milestone",             "mp": 0},
-    {"id": "expert_level",   "icon": "🎓", "name": "Advanced Status",    "desc": "Reach Advanced milestone",               "xp": 0},
-    {"id": "first_mindmap",  "icon": "🕸️", "name": "Visual Thinker",     "desc": "Generate your first mind map",           "xp": 20},
-    {"id": "first_flashcard","icon": "📇", "name": "Memory Master",      "desc": "Generate smart flashcards",              "xp": 20},
+    {"id": "expert_level",   "icon": "🎓", "name": "Advanced Status",    "desc": "Reach Advanced milestone",               "mp": 0},
+    {"id": "first_mindmap",  "icon": "🕸️", "name": "Visual Thinker",     "desc": "Generate your first mind map",           "mp": 20},
+    {"id": "first_flashcard","icon": "📇", "name": "Memory Master",      "desc": "Generate smart flashcards",              "mp": 20},
 ]
 
 _DEFAULT = {
@@ -133,9 +133,9 @@ class LearningAnalytics:
                 unlocked.append(aid)
                 new_unlocked.append(aid)
                 badge = next((a for a in ACHIEVEMENTS if a["id"] == aid), None)
-                if badge and badge["xp"] > 0:
-                    self.data["total_mp"] += badge["xp"]
-                    self.data["today_mp"] = self.data.get("today_mp", 0) + badge["xp"]
+                if badge and badge["mp"] > 0:
+                    self.data["total_mp"] += badge["mp"]
+                    self.data["today_mp"] = self.data.get("today_mp", 0) + badge["mp"]
 
         if self.data.get("docs_uploaded", 0) >= 1:
             unlock("first_doc")
@@ -173,8 +173,8 @@ class LearningAnalytics:
             unlocked.append("first_summary")
             new_ach.append("first_summary")
             badge = next(a for a in ACHIEVEMENTS if a["id"] == "first_summary")
-            self.data["total_mp"] += badge["xp"]
-            self.data["today_mp"] = self.data.get("today_mp", 0) + badge["xp"]
+            self.data["total_mp"] += badge["mp"]
+            self.data["today_mp"] = self.data.get("today_mp", 0) + badge["mp"]
             self.data["unlocked"] = unlocked
         amount, more = self.award_mp("generate_summary")
         self.save()
@@ -189,14 +189,14 @@ class LearningAnalytics:
         idx = LEVELS.index(current)
         next_lvl = LEVELS[idx + 1] if idx + 1 < len(LEVELS) else None
         if next_lvl:
-            xp_in = mp - current["min_mp"]
-            xp_need = next_lvl["min_mp"] - current["min_mp"]
-            progress = min(xp_in / xp_need, 1.0)
+            mp_in = mp - current["min_mp"]
+            mp_need = next_lvl["min_mp"] - current["min_mp"]
+            progress = min(mp_in / mp_need, 1.0)
         else:
-            xp_in = mp - current["min_mp"]
-            xp_need = 0
+            mp_in = mp - current["min_mp"]
+            mp_need = 0
             progress = 1.0
-        return current, next_lvl, xp_in, xp_need, progress
+        return current, next_lvl, mp_in, mp_need, progress
 
     @property
     def total_mp(self) -> int:
