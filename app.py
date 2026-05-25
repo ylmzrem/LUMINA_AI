@@ -481,6 +481,8 @@ def init_session():
         "flashcards": [],         
         "current_card_idx": 0,    
         "card_flipped": False,
+        "pdf_target_page": 1,
+        "nickname": "Explorer",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -538,11 +540,11 @@ if st.session_state.get("mp_notification"):
     mp_val, new_ach = st.session_state.mp_notification
     st.session_state.mp_notification = None
     if mp_val > 0:
-        st.toast(f"+ {mp_val} Insight Points (IP) gained!", icon="✨")
+        st.toast(f"+ {mp_val} Mastery Points (MP) gained!", icon="✨")
     for aid in new_ach:
         badge = next((a for a in ACHIEVEMENTS if a["id"] == aid), None)
         if badge:
-            st.toast(f"{badge['icon']} Badge unlocked: {badge['name']} (+{badge['mp']} IP)", icon="🏅")
+            st.toast(f"{badge['icon']} Badge unlocked: {badge['name']} (+{badge['mp']} MP)", icon="🏅")
 
 
 # ── SIDEBAR ─────────────────────────────────────────────────────────────────
@@ -559,6 +561,13 @@ with st.sidebar:
     st.markdown('<div class="sidebar-brand">LUMINA AI</div>', unsafe_allow_html=True)
     st.markdown('<div class="sidebar-tagline">INTELLIGENT LEARNING</div>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
+    
+    st.session_state.nickname = st.text_input(
+        "👤 Player Nickname", 
+        value=st.session_state.get("nickname", "Explorer"), 
+        max_chars=15,
+        help="Enter your name to personalize your learning dashboard!"
+    )
     
     st.markdown("---")
     st.markdown("## 📄 Document")
@@ -656,7 +665,7 @@ with st.sidebar:
 """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("## 🏆 Your Progress") 
+    st.markdown(f"## 🏆 {st.session_state.nickname}'s Progress") 
     st.markdown("<br>", unsafe_allow_html=True)
     
     if "analytics" in st.session_state:
@@ -710,17 +719,19 @@ with st.sidebar:
 <div style="background-color: #1e1e30; border: 1px solid #334155; border-radius: 12px; padding: 1.2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     
 <div style="color: #e2e8f0; font-size: 0.82rem; line-height: 1.5; margin-bottom: 1rem;">
-    <b>Lumina AI</b> is an intelligent academic workspace engineered to transform static study materials into dynamic, data-driven learning experiences.
+    Lumina AI is an advanced academic workspace engineered to transform static study materials into dynamic, data-driven learning experiences.
 </div>
 
 <div style="color: #818cf8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.6rem;">Core Modules</div>
 
-<div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 1.2rem;">
+<div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 1.2rem;">
     <div style="display: flex; align-items: center; gap: 8px;"><span>🧠</span> RAG-Powered Q&A & Citation</div>
-    <div style="display: flex; align-items: center; gap: 8px;"><span>📊</span> Mastery Analytics Dashboard</div>
-    <div style="display: flex; align-items: center; gap: 8px;"><span>📇</span> Leitner Flashcard Engine</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>🎧</span> Audio Podcast & Translation</div>
     <div style="display: flex; align-items: center; gap: 8px;"><span>🕸️</span> Neural Mind Mapping</div>
-    <div style="display: flex; align-items: center; gap: 8px;"><span>🧪</span> Adaptive Assessment</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>⚙️</span> Logic Circuit & Big-O Validator</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>🎯</span> Adaptive Hybrid Exam Simulator</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>📇</span> Leitner Flashcard Engine</div>
+    <div style="display: flex; align-items: center; gap: 8px;"><span>📊</span> Gamified Mastery Dashboard</div>
 </div>
 
 <div style="color: #818cf8; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.6rem;">Engineered By</div>
@@ -756,78 +767,142 @@ if not st.session_state.vector_store:
 """, unsafe_allow_html=True)
     st.stop()
 
-
-tab_viewer, tab_chat, tab_summary, tab_quiz, tab_map, tab_cards = st.tabs(["📄 Viewer", "💬 Chat", "📋 Summary", "🧪 Quiz", "🕸️ Mind Map", "📇 Flashcards"])
-
-# ── TAB 0: VIEWER  ─────────────────────────────────────────────
-with tab_viewer:
-    st.markdown("### 📄 Document Viewer")
-    
-    if st.session_state.get("raw_files"):
-        file_names = list(st.session_state.raw_files.keys())
-        
-        if len(file_names) > 1:
-            selected_file = st.selectbox("Select document to view:", file_names)
-        else:
-            selected_file = file_names[0]
-            
-        file_bytes = st.session_state.raw_files[selected_file]
-        
-        if selected_file.lower().endswith('.pdf'):
-            base64_pdf = base64.b64encode(file_bytes).decode('utf-8')
-            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}#toolbar=0" width="100%" height="750px" style="border-radius: 10px; border: 1px solid rgba(99,102,241,0.3);"></iframe>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-            
-        elif selected_file.lower().endswith(('.txt', '.csv')):
-            try:
-                text_content = file_bytes.decode('utf-8')
-                st.text_area("Document Content:", text_content, height=600, disabled=True)
-            except:
-                st.warning("Could not read text encoding.")
-                
-        else:
-            st.info(f"Visual preview is not natively supported for {selected_file.split('.')[-1].upper()} files in this browser.")
-            st.markdown("Don't worry! **Lumina AI has successfully read the text content** of this file and is ready to answer your questions or generate quizzes.")
-            
-    else:
-        st.markdown("""
-        <div style="text-align:center; color:#475569; padding:3rem 0;">
-            <div style="font-size:2.5rem; margin-bottom:0.75rem;">👀</div>
-            <div>Upload a PDF or text file to view it directly in this window.</div>
-        </div>
-        """, unsafe_allow_html=True)
+tab_chat, tab_viewer, tab_summary, tab_quiz, tab_cards, tab_map, tab_algo = st.tabs([
+        "💬 Chat", 
+        "📄 Viewer", 
+        "📝 Summary", 
+        "🎯 Quiz", 
+        "📇 Flashcards", 
+        "🕸️ Mind Map", 
+        "⚙️ Logic & Algo"
+    ])
 
 # ── TAB 1: CHAT ──────────────────────────────────────────────────────────────
 with tab_chat:
     st.markdown("### Ask anything about your document")
 
+    st.markdown("<div style='margin-bottom: 0.5rem; color: #94a3b8; font-size: 0.9rem;'>Select Teaching Style:</div>", unsafe_allow_html=True)
+    tutor_mode = st.radio(
+        "Tutor Mode",
+        options=["Standard Assistant", "👶 Explain Like I'm 5", "🏛️ Socratic Tutor", "🎓 Academic Professor"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    st.markdown("---")
+
     chat_container = st.container()
     with chat_container:
         if not st.session_state.chat_history:
             st.markdown("""
-<div style="text-align:center; color:#475569; padding:2rem 0;">
-    <div style="font-size:2rem; margin-bottom:0.5rem;">💡</div>
-    <div>Start by asking a question about your document.<br>
-    Lumina AI will answer using only the uploaded content and cite page numbers.</div>
-</div>
-""", unsafe_allow_html=True)
+            <div style="text-align:center; color:#475569; padding:2rem 0;">
+                <div style="font-size:2rem; margin-bottom:0.5rem;">💡</div>
+                <div>Start by asking a question about your document.<br>
+                Lumina AI will adapt to your selected teaching style.</div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            for turn in st.session_state.chat_history:
+            for i, turn in enumerate(st.session_state.chat_history):
                 st.markdown(f"""
-<div class="chat-label-user">You</div>
-<div class="chat-bubble-user">{turn['question']}</div>
-<div class="chat-label-ai">🧠 Lumina AI</div>
-<div class="chat-bubble-ai">{turn['answer']}</div>
-""", unsafe_allow_html=True)
+                <div class="chat-label-user">You</div>
+                <div class="chat-bubble-user">{turn['question']}</div>
+                <div class="chat-label-ai">🧠 Lumina AI</div>
+                <div class="chat-bubble-ai">{turn['answer']}</div>
+                """, unsafe_allow_html=True)
+                
                 if turn.get("pages"):
-                    badges = " ".join(
-                        f'<span class="citation-badge">📖 Page {p}</span>'
-                        for p in sorted(set(turn["pages"]))
-                    )
-                    st.markdown(f'<div style="margin-bottom:0.5rem;">{badges}</div>',
-                                unsafe_allow_html=True)
+                    st.markdown("<div style='margin-bottom:0.1rem; color:#94a3b8; font-size:0.75rem;'>Sources:</div>", unsafe_allow_html=True)
+                    
+                    page_cols = st.columns(len(set(turn["pages"])) + 10) 
+                    
+                    for idx, p in enumerate(sorted(set(turn["pages"]))):
+                        with page_cols[idx]:
+                            if st.button(f"📖 Page {p}", key=f"btn_page_{i}_{p}", help="Click to jump to this page in the Viewer tab"):
+                                st.session_state.pdf_target_page = p
+                                st.toast(f"📍 PDF set to Page {p}. Please switch to the '📄 Viewer' tab to read it!", icon="👀")
+                                st.rerun()
 
-    st.markdown("---")
+                if i == len(st.session_state.chat_history) - 1:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    col_f, col_q, col_empty = st.columns([1.8, 1.8, 1.2])                    
+                    
+                    with col_f:
+                        if st.button("📇 Turn into Flashcards", key=f"btn_flash_{i}", use_container_width=True):
+                            with st.spinner("Extracting key concepts..."):
+                                try:
+                                    import google.generativeai as genai
+                                    import json
+                                    import datetime
+                                    
+                                    genai.configure(api_key=api_key)
+                                    model = genai.GenerativeModel(
+                                        'gemini-2.5-flash',
+                                        generation_config={"response_mime_type": "application/json"}
+                                    )
+                                    
+                                    prompt = f"""Extract 3 key educational concepts from the following text. 
+                                    Return a JSON array of objects. Each object must have exactly two string keys: 'term' and 'definition'.
+                                    Write the terms and definitions in the SAME LANGUAGE as the text below.
+                                    Text: {turn['answer']}"""
+                                    
+                                    response = model.generate_content(prompt)
+                                    new_cards = json.loads(response.text)
+                                    
+                                    today_str = datetime.datetime.now().date().isoformat()
+                                    for c in new_cards:
+                                        c["box"] = 1
+                                        c["next_review"] = today_str
+                                        
+                                    st.session_state.flashcards.extend(new_cards)
+                                    
+                                    if "analytics" in st.session_state:
+                                        mp_gained, new_ach = st.session_state.analytics.award_mp("generate_flashcards")
+                                        st.session_state.mp_notification = (mp_gained, new_ach)
+                                        
+                                    st.toast(f"✅ {len(new_cards)} new flashcards added to your collection!", icon="📇")
+                                except Exception as e:
+                                    st.error(f"Error: {str(e)}")
+                                    
+                    with col_q:
+                        if st.button("🧪 Generate Mini-Quiz", key=f"btn_quiz_{i}", use_container_width=True):
+                            with st.spinner("Generating question..."):
+                                try:
+                                    import google.generativeai as genai
+                                    import json
+                                    
+                                    genai.configure(api_key=api_key)
+                                    model = genai.GenerativeModel(
+                                        'gemini-2.5-flash',
+                                        generation_config={"response_mime_type": "application/json"}
+                                    )
+                                    
+                                    prompt = f"""Create 1 multiple-choice question based on the text below. 
+                                    Write the question in the SAME LANGUAGE as the text below.
+                                    Return a JSON array containing exactly one object with the following schema:
+                                    [
+                                      {{
+                                        "question": "The question text",
+                                        "options": {{"A": "Option 1", "B": "Option 2", "C": "Option 3", "D": "Option 4"}},
+                                        "correct_answer": "A",
+                                        "explanation": "Why this is correct",
+                                        "page_reference": "Extracted from Chat"
+                                      }}
+                                    ]
+                                    Text: {turn['answer']}"""
+                                    
+                                    response = model.generate_content(prompt)
+                                    new_quiz = json.loads(response.text)
+                                    
+                                    if st.session_state.quiz is None:
+                                        st.session_state.quiz = []
+                                        st.session_state.quiz_answers = {}
+                                        st.session_state.quiz_submitted = False
+                                        st.session_state["quiz_difficulty"] = {"mult": 1.0, "css": "difficulty-medium"}
+                                        
+                                    st.session_state.quiz.extend(new_quiz)
+                                    st.toast("✅ Mini-quiz generated! Check the Quiz tab.", icon="🎯")
+                                except Exception as e:
+                                    st.error(f"Error: {str(e)}")
+                                    
 
     with st.form(key="chat_form", clear_on_submit=True):
         col_input, col_send = st.columns([5, 1], vertical_alignment="bottom") 
@@ -852,19 +927,30 @@ with tab_chat:
                         lc_history.append(HumanMessage(content=turn["question"]))
                         lc_history.append(AIMessage(content=turn["answer"]))
 
+                    enhanced_question = user_question
+                    
+                    if tutor_mode == "👶 Explain Like I'm 5":
+                        enhanced_question = f"Explain the following concept as if I am 5 years old. Use very simple words, fun metaphors, and keep it easy to understand. Here is my question: {user_question}"
+                    elif tutor_mode == "🏛️ Socratic Tutor":
+                        enhanced_question = f"Act as a Socratic tutor. Do NOT give me the direct answer immediately. Instead, give a small hint based on the context and ask a thought-provoking question to help me figure it out myself. Here is my question: {user_question}"
+                    elif tutor_mode == "🎓 Academic Professor":
+                        enhanced_question = f"Act as a strict, academic university professor. Provide a highly detailed, formal, and academically rigorous answer. Use advanced terminology and professional formatting. Here is my question: {user_question}"
+
                     result = st.session_state.rag_chain.invoke({
-                        "question": user_question,
+                        "question": enhanced_question,
                         "chat_history": lc_history,
                     })
+                    
                     answer = result.get("answer", "")
                     source_docs = result.get("_source_docs", [])
                     pages = [d.metadata.get("page") for d in source_docs if d.metadata.get("page")]
 
                     st.session_state.chat_history.append({
-                        "question": user_question,
+                        "question": user_question, 
                         "answer": answer,
                         "pages": pages,
                     })
+                    
                     analytics = st.session_state.analytics
                     analytics.increment_counter("questions_asked")
                     mp_gained, new_ach = analytics.award_mp("ask_question")
@@ -874,8 +960,74 @@ with tab_chat:
                 except Exception as e:
                     handle_api_error(e)
 
+# ── TAB 2 : VIEWER  ─────────────────────────────────────────────
+with tab_viewer:
+    st.markdown("### 📄 Document Viewer")
+    
+    if st.session_state.get("raw_files"):
+        file_names = list(st.session_state.raw_files.keys())
+        
+        if len(file_names) > 1:
+            selected_file = st.selectbox("Select document to view:", file_names)
+        else:
+            selected_file = file_names[0]
+            
+        file_bytes = st.session_state.raw_files[selected_file]
+        
+        if selected_file.lower().endswith('.pdf'):
+            target_page = st.session_state.get("pdf_target_page", 1)
+            
+            if target_page > 1:
+                col_info, col_reset = st.columns([4, 1])
+                with col_info:
+                    st.info(f"📍 **Focused on Page {target_page}** (Triggered from Chat)")
+                with col_reset:
+                    if st.button("↺ Full Document", use_container_width=True):
+                        st.session_state.pdf_target_page = 1
+                        st.rerun()
+                
+                with st.spinner("Rendering target page..."):
+                    try:
+                        import fitz  
+                        doc = fitz.open(stream=file_bytes, filetype="pdf")
+                        
+                        safe_page_idx = min(target_page - 1, len(doc) - 1)
+                        page = doc.load_page(safe_page_idx) 
+                        
+                        zoom = 2.0 
+                        mat = fitz.Matrix(zoom, zoom)
+                        pix = page.get_pixmap(matrix=mat)
+                        
+                        st.image(pix.tobytes("png"), caption=f"Page {safe_page_idx + 1}", use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Page render error: {e}")
+                        
+            else:
+                base64_pdf = base64.b64encode(file_bytes).decode('utf-8')
+                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}#view=FitH" width="100%" height="750px" style="border-radius: 10px; border: 1px solid rgba(99,102,241,0.3);"></iframe>'
+                st.markdown(pdf_display, unsafe_allow_html=True)
+            
+        elif selected_file.lower().endswith(('.txt', '.csv')):
+            try:
+                text_content = file_bytes.decode('utf-8')
+                st.text_area("Document Content:", text_content, height=600, disabled=True)
+            except:
+                st.warning("Could not read text encoding.")
+                
+        else:
+            st.info(f"Visual preview is not natively supported for {selected_file.split('.')[-1].upper()} files in this browser.")
+            st.markdown("Don't worry! **Lumina AI has successfully read the text content** of this file and is ready to answer your questions or generate quizzes.")
+            
+    else:
+        st.markdown("""
+        <div style="text-align:center; color:#475569; padding:3rem 0;">
+            <div style="font-size:2.5rem; margin-bottom:0.75rem;">👀</div>
+            <div>Upload a PDF or text file to view it directly in this window.</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-# ── TAB 2: SUMMARY ──────────────────────────────────────────────────────────
+# ── TAB 3: SUMMARY ──────────────────────────────────────────────────────────
 with tab_summary:
     st.markdown("### 📋 One-Click Document Summary")
     st.markdown(
@@ -912,15 +1064,53 @@ with tab_summary:
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("---")
 
-        col_sp1, col_export, col_sp2 = st.columns([1, 1.5, 1])
+        col_audio, col_export, col_sp2 = st.columns([1.5, 1.5, 0.5])
+
+        with col_audio:
+            st.markdown("<div style='margin-bottom: 5px; color: #94a3b8; font-size: 0.85rem; font-weight: 600;'>🎧 Listen to Summary</div>", unsafe_allow_html=True)
+            c_lang, c_btn = st.columns([1, 2.5])
+            
+            with c_lang:
+                audio_lang = st.selectbox("Lang", ["🇬🇧 English", "🇹🇷 Türkçe"], index=0, label_visibility="collapsed")
+                
+            with c_btn:
+                if st.button("▶️ Play Audio", use_container_width=True):
+                    with st.spinner("Translating and generating podcast..."):
+                        try:
+                            from gtts import gTTS
+                            import io
+                            import re
+                            import google.generativeai as genai
+                            
+                            target_lang_code = "tr" if "Turkish" in audio_lang else "en"
+                            target_lang_name = "Turkish" if target_lang_code == "tr" else "English"
+                            
+                            clean_text = re.sub(r'[#*`]', '', st.session_state.summary)
+                            
+                            genai.configure(api_key=api_key)
+                            model = genai.GenerativeModel('gemini-2.5-flash')
+                            prompt = f"Translate the following text into {target_lang_name}. Return ONLY the translated text. Do not add any conversational text or markdown formatting.\n\nText: {clean_text}"
+                            response = model.generate_content(prompt)
+                            translated_text = response.text.strip()
+                            
+                            tts = gTTS(text=translated_text, lang=target_lang_code)
+                            audio_fp = io.BytesIO()
+                            tts.write_to_fp(audio_fp)
+                            audio_fp.seek(0)
+                            
+                            st.audio(audio_fp, format='audio/mp3')
+                            
+                        except Exception as e:
+                            st.error(f"Audio Error: {e}")
 
         with col_export:
+            st.markdown("<div style='margin-bottom: 5px; color: #94a3b8; font-size: 0.85rem; font-weight: 600;'>📥 Save Document</div>", unsafe_allow_html=True)
             try:
                 from core.export_utils import export_to_pdf
                 summary_pdf = export_to_pdf(st.session_state.summary, f"Document Summary ({summary_len})")
                 
                 st.download_button(
-                    label="📥 Export Summary as PDF",
+                    label="📄 Export as PDF",
                     data=bytes(summary_pdf),
                     file_name=f"Lumina_Summary_{summary_len}.pdf",
                     mime="application/pdf",
@@ -932,28 +1122,29 @@ with tab_summary:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-# ── TAB 3: QUIZ ───────────────────────────────────────────────────────────────
+# ── TAB 4: QUIZ ───────────────────────────────────────────────────────────────
 with tab_quiz:
-    st.markdown("### Adaptive Quiz Engine")
+    st.markdown("### 🎯 Knowledge Assessment")
+    
+    quiz_mode = st.radio(
+        "Select Your Mode:",
+        ["📝 Practice (Untimed)", "🚀 Exam (Timed)"],
+        horizontal=True,
+        help="Practice mode allows you to solve at your own pace. Exam mode adds a countdown timer."
+    )
+    st.markdown("---")
 
     col_diff, col_num, col_gen, col_reset = st.columns([2, 2, 2, 1], vertical_alignment="bottom")
 
     with col_diff:
-        selected_diff = st.selectbox(
-            "Difficulty",
-            options=["Easy", "Medium", "Hard"],
-            index=1
-        )
+        selected_diff = st.selectbox("Difficulty", options=["Easy", "Medium", "Hard"], index=1)
 
     with col_num:
-        selected_num = st.selectbox(
-            "Number of Questions",
-            options=[3, 5, 7, 10],
-            index=1
-        )
+        selected_num = st.selectbox("Number of Questions", options=[3, 5, 7, 10], index=1)
 
     with col_gen:
-        generate_quiz_btn = st.button("🎯 Generate Quiz", use_container_width=True)
+        button_label = "🚀 Start Exam" if "Exam" in quiz_mode else "📝 Generate Quiz"
+        generate_quiz_btn = st.button(button_label, use_container_width=True)
         
     with col_reset:
         reset_quiz_btn = st.button("↺ Reset", use_container_width=True)
@@ -965,283 +1156,144 @@ with tab_quiz:
         st.rerun()
 
     if generate_quiz_btn:
-        with st.spinner("Creating quiz questions…"):
+        with st.spinner("Preparing questions…"):
             try:
+                import time
                 diff_mapping = {
                     "Easy":   {"mult": 1.0, "css": "difficulty-easy"},
                     "Medium": {"mult": 1.5, "css": "difficulty-medium"},
                     "Hard":   {"mult": 2.0, "css": "difficulty-hard"}
                 }
-                diff_dict = diff_mapping[selected_diff]
-
+                
                 questions = generate_quiz(st.session_state.documents, api_key, selected_num)
                 
                 if questions:
                     st.session_state.quiz = questions
                     st.session_state.quiz_answers = {}
                     st.session_state.quiz_submitted = False
-                    st.session_state["quiz_difficulty"] = diff_dict
+                    st.session_state["quiz_difficulty"] = diff_mapping[selected_diff]
+                    st.session_state["active_quiz_mode"] = quiz_mode 
+                    
+                    st.session_state.exam_start_time = time.time()
+                    st.session_state.exam_time_limit = selected_num * 60 
 
-                    st.toast("Quiz completed successfully!", icon="🎉")
-
+                    msg = "Exam started! Clock is ticking." if "Exam" in quiz_mode else "Quiz generated. Take your time!"
+                    st.toast(msg, icon="⏳" if "Exam" in quiz_mode else "📝")
                 else:
-                    st.error("Could not generate quiz questions. Please try again.")
-            
+                    st.error("Could not generate questions. Please try again.")
             except Exception as e:
                 handle_api_error(e)
 
     if st.session_state.quiz:
+        import time
         questions = st.session_state.quiz
         q_diff = st.session_state.get("quiz_difficulty", {"mult": 1.0, "css": "difficulty-easy"})
+        active_mode = st.session_state.get("active_quiz_mode", "📝 Practice (Untimed)")
+
+        if not st.session_state.quiz_submitted and "Exam" in active_mode:
+            end_time_js = (st.session_state.exam_start_time + st.session_state.exam_time_limit) * 1000
+            timer_html = f"""
+            <div id="exam-timer" style="background: linear-gradient(135deg, #4c1d95, #1e1e30); border: 2px solid #818cf8; border-radius: 12px; padding: 15px; text-align: center; color: #f8fafc; font-size: 2rem; font-weight: bold; font-family: 'Courier New', Courier, monospace; box-shadow: 0 4px 15px rgba(129,140,248,0.3); margin-bottom: 20px;">Loading...</div>
+            <script>
+                var countDownDate = {end_time_js};
+                var x = setInterval(function() {{
+                    var now = new Date().getTime();
+                    var distance = countDownDate - now;
+                    if (distance < 0) {{
+                        clearInterval(x);
+                        document.getElementById("exam-timer").innerHTML = "⚠️ TIME IS UP!";
+                        document.getElementById("exam-timer").style.color = "#f87171";
+                    }} else {{
+                        var mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                        var secs = Math.floor((distance % (1000 * 60)) / 1000);
+                        document.getElementById("exam-timer").innerHTML = "⏱️ " + mins + ":" + (secs < 10 ? "0" + secs : secs);
+                    }}
+                }}, 1000);
+            </script>
+            """
+            import streamlit.components.v1 as components
+            components.html(timer_html, height=100)
 
         if st.session_state.quiz_submitted:
-            correct = sum(
-                1 for i, q in enumerate(questions)
-                if st.session_state.quiz_answers.get(i) == q.get("correct_answer")
-            )
+            correct = sum(1 for i, q in enumerate(questions) if st.session_state.quiz_answers.get(i) == q.get("correct_answer"))
             total = len(questions)
             pct = int(correct / total * 100)
+            
+            time_taken = st.session_state.get("exam_end_time", time.time()) - st.session_state.exam_start_time
+            mins, secs = divmod(int(time_taken), 60)
+            time_str = f"{mins}m {secs}s"
 
             emoji = "🏆" if pct >= 80 else "👍" if pct >= 60 else "📖"
-            msg = "Excellent work!" if pct >= 80 else "Good effort!" if pct >= 60 else "Keep studying!"
-
-            mp_earned = int(correct * 10 * q_diff["mult"]) + (20 if correct == total else 0)
+            mp_earned = int(correct * 10 * q_diff["mult"])
+            
             st.markdown(f"""
-<div class="score-banner">
-    <div class="score-number">{emoji} {correct}/{total}</div>
-    <div class="score-label">{pct}% · {msg}</div>
-    <div style="margin-top:0.5rem; font-size:0.85rem; color:#818cf8;">+{mp_earned} IP earned this quiz</div>
-</div>
-""", unsafe_allow_html=True)
+            <div class="score-banner" style="position: relative;">
+                {"<div style='position: absolute; top: 15px; right: 20px; background: rgba(129,140,248,0.2); padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; color: #a5b4fc; border: 1px solid rgba(129,140,248,0.4);'>⏱️ Time: <b>" + time_str + "</b></div>" if "Exam" in active_mode else ""}
+                <div class="score-number">{emoji} {correct}/{total}</div>
+                <div class="score-label">{pct}% Accuracy · {active_mode}</div>
+                <div style="margin-top:0.5rem; font-size:0.85rem; color:#818cf8;">+{mp_earned} MP earned</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        st.markdown("<br>", unsafe_allow_html=True)
+        if "ai_report" not in st.session_state:
+            st.session_state.ai_report = None
+
+        if st.session_state.ai_report:
+            st.info(st.session_state.ai_report)
+        else:
+            if st.button("🧠 Generate Detailed AI Analysis", use_container_width=True):
+                with st.spinner("Lumina AI is analyzing your cognitive performance..."):
+                    try:
+                        import google.generativeai as genai
+                        genai.configure(api_key=api_key)
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        
+                        report_data = []
+                        for idx, q in enumerate(questions):
+                            user_ans = st.session_state.quiz_answers.get(idx)
+                            correct_ans = q.get("correct_answer")
+                            is_correct = (user_ans == correct_ans)
+                            report_data.append(f"Q{idx+1}: {q.get('question')} | User Answered Correctly? {is_correct}")
+                        
+                        prompt = f"""You are an expert academic coach. Analyze the user's quiz performance based on the data below.
+                        Write a short, encouraging, and highly specific 3-bullet point evaluation.
+                        Highlight their strengths, point out their weaknesses based on the questions they got wrong, and give a specific study recommendation.
+                        Data: {report_data}
+                        Format: Use markdown bullets. Do not use conversational filler."""
+                        
+                        response = model.generate_content(prompt)
+                        st.session_state.ai_report = response.text
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Could not generate report at this time.")
 
         for i, q in enumerate(questions):
-            options_dict = q.get("options", {})
-            option_list = [f"{k}: {v}" for k, v in options_dict.items()]
-            correct_key = q.get("correct_answer", "A")
-
-            user_ans = st.session_state.quiz_answers.get(i)
-            submitted = st.session_state.quiz_submitted
-
             with st.container():
-                st.markdown(f"""
-<div class="quiz-card">
-    <div class="quiz-q-num">Question {i + 1} &nbsp;·&nbsp; {q.get("page_reference", "")}</div>
-    <div class="quiz-question">{q.get("question", "")}</div>
-</div>
-""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="quiz-card"><div class="quiz-q-num">Question {i + 1}</div><div class="quiz-question">{q.get("question", "")}</div></div>""", unsafe_allow_html=True)
+                
+                options_dict = q.get("options", {})
+                option_list = [f"{k}: {v}" for k, v in options_dict.items()]
+                
+                selected = st.radio(f"q_{i}", options=option_list, index=None if not st.session_state.quiz_submitted else next((j for j, o in enumerate(option_list) if o.startswith(st.session_state.quiz_answers.get(i) or "~")), None), key=f"radio_{i}", label_visibility="collapsed", disabled=st.session_state.quiz_submitted)
 
-                selected = st.radio(
-                    f"q_{i}",
-                    options=option_list,
-                    index=None if not submitted else next(
-                        (j for j, o in enumerate(option_list) if o.startswith(user_ans or "~")),
-                        None
-                    ),
-                    key=f"radio_{i}",
-                    label_visibility="collapsed",
-                    disabled=submitted,
-                )
+                if not st.session_state.quiz_submitted and selected:
+                    st.session_state.quiz_answers[i] = selected.split(":")[0].strip()
 
-                if not submitted and selected:
-                    chosen_key = selected.split(":")[0].strip()
-                    st.session_state.quiz_answers[i] = chosen_key
-
-                if submitted and user_ans:
-                    is_correct = (user_ans == correct_key)
-                    correct_text = f"{correct_key}: {options_dict.get(correct_key, '')}"
-                    if is_correct:
-                        st.markdown(f"""
-<div class="explanation-box">
-    ✅ <b class="correct-answer">Correct!</b><br>
-    {q.get("explanation", "")}
-</div>""", unsafe_allow_html=True)
+                if st.session_state.quiz_submitted:
+                    correct_key = q.get("correct_answer", "A")
+                    if st.session_state.quiz_answers.get(i) == correct_key:
+                        st.success(f"Correct! {q.get('explanation','')}")
                     else:
-                        st.markdown(f"""
-<div class="wrong-explanation-box">
-    ❌ <b class="wrong-answer">Incorrect.</b> The correct answer is <b>{correct_text}</b><br>
-    {q.get("explanation", "")}
-</div>""", unsafe_allow_html=True)
+                        st.error(f"Incorrect. Answer was {correct_key}. {q.get('explanation','')}")
 
-        st.markdown("---")
         if not st.session_state.quiz_submitted:
-            answered = len(st.session_state.quiz_answers)
-            total = len(questions)
+            if st.button("✅ Finish & Submit", use_container_width=True):
+                st.session_state.exam_end_time = time.time()
+                st.session_state.quiz_submitted = True
+                st.rerun()
 
-            st.markdown(
-                f'<div style="text-align: center; color: #94a3b8; font-size: 0.95rem; margin-bottom: 1rem;">'
-                f'Answered: <b style="color: #a5b4fc;">{answered} / {total}</b> questions'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-            col_sp1, col_sub, col_exp, col_sp2 = st.columns([1, 1.5, 1.5, 1])
-
-            with col_sub:
-                if st.button("✅ Submit Quiz", use_container_width=True):
-                    if len(st.session_state.quiz_answers) < total:
-                        st.warning(f"Please answer all {total} questions before submitting.")
-                    else:
-                        correct_count = sum(1 for i, q in enumerate(questions) if st.session_state.quiz_answers.get(i) == q.get("correct_answer"))
-                        mult = st.session_state.get("quiz_difficulty", {}).get("mult", 1.0)
-                        if "analytics" in st.session_state:
-                            mp_gained, new_ach = st.session_state.analytics.award_quiz_mp(correct_count, total, mult)
-                            st.session_state.mp_notification = (mp_gained, new_ach)
-                        st.session_state.quiz_submitted = True
-                        st.rerun()
-
-            with col_exp:
-                quiz_text = ""
-                for i, q in enumerate(st.session_state.quiz):
-                    quiz_text += f"Question {i+1}: {q.get('question', '')}\n"
-                    for k, v in q.get('options', {}).items():
-                        quiz_text += f"{k}) {v}\n"
-                    quiz_text += f"Correct Answer: {q.get('correct_answer', '')}\n\n"
-
-                from core.export_utils import export_to_pdf
-                quiz_pdf = export_to_pdf(quiz_text, "Practice Quiz")
-
-                st.download_button(
-                    "📥 Export as PDF",
-                    data=bytes(quiz_pdf),
-                    file_name="Lumina_Quiz.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-
-        else:
-            col_sp1, col_exp_center, col_sp2 = st.columns([1, 2, 1])
-            
-            with col_exp_center:
-                quiz_text = ""
-                for i, q in enumerate(st.session_state.quiz):
-                    quiz_text += f"Question {i+1}: {q.get('question', '')}\n"
-                    for k, v in q.get('options', {}).items():
-                        quiz_text += f"{k}) {v}\n"
-                    quiz_text += f"Correct Answer: {q.get('correct_answer', '')}\n\n"
-
-                from core.export_utils import export_to_pdf
-                quiz_pdf = export_to_pdf(quiz_text, "Practice Quiz")
-
-                st.download_button(
-                    "📥 Export Quiz & Answers as PDF",
-                    data=bytes(quiz_pdf),
-                    file_name="Lumina_Quiz_Results.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-
-# ── TAB 4: MIND MAP ──────────────────────────────────────────────────────────
-with tab_map:
-    st.markdown("### 🕸️ Document Mind Map")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown(
-            "Visualize the structural hierarchy and main topics of your document."
-        )
-    with col2:
-        generate_map_btn = st.button("✨ Generate Mind Map", use_container_width=True)
-
-    if generate_map_btn:
-        with st.spinner("Analyzing document structure..."):
-            try:
-                map_data = generate_mind_map(st.session_state.documents, api_key)
-                st.session_state.mind_map = map_data
-
-                if "analytics" in st.session_state:
-                    st.session_state.analytics.increment_counter("mindmaps_generated")
-                    mp_gained, new_ach = st.session_state.analytics.award_mp("generate_mindmap")
-                    st.session_state.mp_notification = (mp_gained, new_ach)
-                        
-            except Exception as e:
-                handle_api_error(e)
-
-    if st.session_state.get("mind_map"):
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        options = {
-            "toolbox": { 
-                "show": True,
-                "itemSize": 26,  
-                "right": "4%",
-                "top": "3%",
-                "feature": {
-                    "saveAsImage": {
-                        "type": "png",
-                        "title": "💾 Save as PNG",
-                        "pixelRatio": 3,
-                        "backgroundColor": "#1a1a2e", 
-                        "iconStyle": {
-                            "borderColor": "#818cf8", 
-                            "borderWidth": 2
-                        }
-                    }
-                }
-            },
-            "tooltip": {"trigger": "item", "triggerOn": "mousemove"},
-            "series": [
-                {
-                    "type": "tree",
-                    "data": [st.session_state.mind_map],
-
-                    "top": "10%",
-                    "bottom": "10%",
-                    "left": "20%",
-                    "right": "23%",
-
-                    "symbolSize": 10, 
-                    "symbol": "circle",
-                    "itemStyle": {
-                        "color": "#818cf8",
-                        "borderColor": "#4f46e5", 
-                        "borderWidth": 2
-                    },
-                    "lineStyle": {
-                        "color": "#4f46e5", 
-                        "width": 2,
-                        "curveness": 0.6 
-                    },
-                    "label": {
-                        "position": "left",
-                        "verticalAlign": "middle",
-                        "align": "right",
-                        "fontSize": 13,
-                        "fontWeight": "bold",
-                        "color": "#ffffff",
-                        "backgroundColor": "#312e81", 
-                        "borderColor": "#6366f1",     
-                        "borderWidth": 1.5,
-                        "borderRadius": 6,            
-                        "padding": [8, 12, 8, 12],    
-                        "shadowColor": "rgba(0,0,0,0.2)",
-                        "shadowBlur": 5 
-                    },
-                    "leaves": {
-                        "label": {
-                            "position": "right",
-                            "verticalAlign": "middle",
-                            "align": "left",
-                            "color": "#e2e8f0",
-                            "backgroundColor": "#1e1e30", 
-                            "borderColor": "#475569",
-                            "borderWidth": 1,
-                            "borderRadius": 5,
-                            "padding": [6, 10, 6, 10],
-                            "fontWeight": "normal"
-                        }
-                    },
-                    "expandAndCollapse": True, 
-                    "animationDuration": 550,
-                    "animationDurationUpdate": 750
-                }
-            ]
-        }
-        
-        with st.container(border=True):
-            st_echarts(options, height="850px")
-    
-
-# ── TAB 6: FLASHCARDS ────────────────────────────────────────
+# ── TAB 5: FLASHCARDS ────────────────────────────────────────
 with tab_cards:
     
     if not st.session_state.get("flashcards"):
@@ -1380,3 +1432,232 @@ with tab_cards:
                             st.session_state.card_flipped = False
                             st.session_state.current_card_idx += 1
                             st.rerun()
+
+# ── TAB 6: MIND MAP ──────────────────────────────────────────────────────────
+with tab_map:
+    st.markdown("### 🕸️ Document Mind Map")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown(
+            "Visualize the structural hierarchy and main topics of your document."
+        )
+    with col2:
+        generate_map_btn = st.button("✨ Generate Mind Map", use_container_width=True)
+
+    if generate_map_btn:
+        with st.spinner("Analyzing document structure..."):
+            try:
+                map_data = generate_mind_map(st.session_state.documents, api_key)
+                st.session_state.mind_map = map_data
+
+                if "analytics" in st.session_state:
+                    st.session_state.analytics.increment_counter("mindmaps_generated")
+                    mp_gained, new_ach = st.session_state.analytics.award_mp("generate_mindmap")
+                    st.session_state.mp_notification = (mp_gained, new_ach)
+                        
+            except Exception as e:
+                handle_api_error(e)
+
+    if st.session_state.get("mind_map"):
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        options = {
+            "toolbox": { 
+                "show": True,
+                "itemSize": 26,  
+                "right": "4%",
+                "top": "3%",
+                "feature": {
+                    "saveAsImage": {
+                        "type": "png",
+                        "title": "💾 Save as PNG",
+                        "pixelRatio": 3,
+                        "backgroundColor": "#1a1a2e", 
+                        "iconStyle": {
+                            "borderColor": "#818cf8", 
+                            "borderWidth": 2
+                        }
+                    }
+                }
+            },
+            "tooltip": {"trigger": "item", "triggerOn": "mousemove"},
+            "series": [
+                {
+                    "type": "tree",
+                    "data": [st.session_state.mind_map],
+
+                    "top": "10%",
+                    "bottom": "10%",
+                    "left": "20%",
+                    "right": "23%",
+
+                    "symbolSize": 10, 
+                    "symbol": "circle",
+                    "itemStyle": {
+                        "color": "#818cf8",
+                        "borderColor": "#4f46e5", 
+                        "borderWidth": 2
+                    },
+                    "lineStyle": {
+                        "color": "#4f46e5", 
+                        "width": 2,
+                        "curveness": 0.6 
+                    },
+                    "label": {
+                        "position": "left",
+                        "verticalAlign": "middle",
+                        "align": "right",
+                        "fontSize": 13,
+                        "fontWeight": "bold",
+                        "color": "#ffffff",
+                        "backgroundColor": "#312e81", 
+                        "borderColor": "#6366f1",     
+                        "borderWidth": 1.5,
+                        "borderRadius": 6,            
+                        "padding": [8, 12, 8, 12],    
+                        "shadowColor": "rgba(0,0,0,0.2)",
+                        "shadowBlur": 5 
+                    },
+                    "leaves": {
+                        "label": {
+                            "position": "right",
+                            "verticalAlign": "middle",
+                            "align": "left",
+                            "color": "#e2e8f0",
+                            "backgroundColor": "#1e1e30", 
+                            "borderColor": "#475569",
+                            "borderWidth": 1,
+                            "borderRadius": 5,
+                            "padding": [6, 10, 6, 10],
+                            "fontWeight": "normal"
+                        }
+                    },
+                    "expandAndCollapse": True, 
+                    "animationDuration": 550,
+                    "animationDurationUpdate": 750
+                }
+            ]
+        }
+        
+        with st.container(border=True):
+            st_echarts(options, height="850px")
+                    
+# ── TAB 7: LOGIC & ALGORITHM VALIDATOR ──────────────────────────────────────────────
+with tab_algo:
+    st.markdown("### ⚙️ Logic Circuit & Algorithm Validator")
+    st.caption("Enter a computational problem to generate hardware logic schemas, algorithmic steps, and actual code.")
+
+    col_input, col_lang = st.columns([3, 1])
+
+    with col_input:
+        algo_input = st.text_area(
+            "Describe the problem or system:", 
+            height=100, 
+            placeholder="e.g. Air Traffic Control queue, TCP/TLS socket communication..."
+        )
+
+    with col_lang:
+        selected_lang = st.selectbox(
+            "💻 Language:", 
+            options=["Python", "C", "C++", "Java", "JavaScript", "Rust"], 
+            index=0,
+            help="Select the programming language for the code implementation."
+        )
+
+    if st.button("⚡ Analyze Architecture & Complexity", use_container_width=True):
+        if not algo_input.strip():
+            st.warning("Please enter a problem description.")
+        else:
+            with st.spinner("Lumina AI is engineering the solution..."):
+                try:
+                    import google.generativeai as genai
+                    import json
+                    from streamlit_echarts import st_echarts
+                    
+                    genai.configure(api_key=api_key)
+                    
+                    model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+                    
+                    prompt = f"""You are an expert Computer Engineer and Systems Architect.
+                    Analyze this problem: {algo_input}
+                    
+                    Return ONLY a JSON object with exactly these keys:
+                    - "hardware_logic": A markdown string explaining the required logic gates, registers, multiplexers, or system architecture.
+                    - "algorithm_steps": A markdown string of the step-by-step algorithmic execution.
+                    - "code_snippet": The actual code implementation strictly written in {selected_lang} to solve the problem (just the raw code, NO markdown code blocks).
+                    - "language": "{selected_lang}"
+                    - "time_complexity": A string like "O(N)", "O(N^2)", or "O(log N)".
+                    - "space_complexity": A string like "O(1)" or "O(N)".
+                    - "complexity_level": An integer from 1 to 5 used for the efficiency gauge.
+                    
+                    Write the markdown explanations in the same language as the user's prompt.
+                    """
+                    
+                    response = model.generate_content(prompt)
+                    data = json.loads(response.text)
+                    
+                    st.markdown("---")
+                    
+                    col_details, col_chart = st.columns([2.5, 1.5])
+                    
+                    with col_details:
+                        st.markdown("<h4 style='color: #818cf8;'>🛠️ Hardware / System Architecture</h4>", unsafe_allow_html=True)
+                        st.info(data.get("hardware_logic", "No hardware data generated."))
+                        
+                        st.markdown("<h4 style='color: #818cf8;'>📜 Algorithmic Execution</h4>", unsafe_allow_html=True)
+                        st.success(data.get("algorithm_steps", "No algorithm steps generated."))
+                        
+                        code_str = data.get("code_snippet", "")
+                        if code_str:
+                            raw_lang = data.get("language", "python")
+                            if not raw_lang:
+                                raw_lang = "python"
+                            
+                            display_lang = raw_lang.capitalize()
+                            if raw_lang.lower() == "cpp" or raw_lang.lower() == "c++":
+                                display_lang = "C++"
+                                raw_lang = "cpp" 
+                                
+                            st.markdown(f"<h4 style='color: #818cf8;'>💻 {display_lang} Implementation</h4>", unsafe_allow_html=True)
+                            
+                            st.code(code_str, language=raw_lang.lower())
+                        
+                    with col_chart:
+                        st.markdown("<h4 style='color: #818cf8;'>📊 Complexity Metrics</h4>", unsafe_allow_html=True)
+                        st.markdown(f"**⏱️ Time Complexity:** `{data.get('time_complexity', 'N/A')}`")
+                        st.markdown(f"**💾 Space Complexity:** `{data.get('space_complexity', 'N/A')}`")
+                        
+                        level = data.get("complexity_level", 3)
+                        
+                        gauge_option = {
+                            "series": [{
+                                "type": 'gauge',
+                                "startAngle": 180,
+                                "endAngle": 0,
+                                "min": 1,
+                                "max": 5,
+                                "splitNumber": 4,
+                                "axisLine": {
+                                    "lineStyle": {
+                                        "width": 12,
+                                        "color": [
+                                            [0.2, '#10b981'], 
+                                            [0.4, '#3b82f6'], 
+                                            [0.6, '#f59e0b'], 
+                                            [0.8, '#f97316'], 
+                                            [1, '#ef4444']    
+                                        ]
+                                    }
+                                },
+                                "pointer": {"length": '50%', "width": 6},
+                                "detail": {"formatter": 'Efficiency', "fontSize": 14, "color": '#94a3b8', "offsetCenter": [0, '20%']},
+                                "data": [{"value": level}]
+                            }]
+                        }
+                        
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st_echarts(options=gauge_option, height="200px")
+                        
+                except Exception as e:
+                    st.error(f"Analysis failed: {str(e)}")
