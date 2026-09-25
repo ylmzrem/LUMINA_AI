@@ -7,8 +7,6 @@
 
 *(🇹🇷 Türkçe versiyon için [aşağıya kaydırın](#lumina-ai-türkçe-versiyon))*
 
-![Lumina AI Poster](LUMINA%20AI%20-Final.png)
-
 ## 📖 Project Overview
 **Lumina AI** is a next-generation intelligent study platform built for university students and developers. It combines a Retrieval-Augmented Generation (RAG) pipeline with gamified mastery tracking, allowing users to upload multi-format documents and interact through AI-powered tutoring, quizzes, and visual mind maps.
 
