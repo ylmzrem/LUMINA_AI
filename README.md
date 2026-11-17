@@ -45,7 +45,7 @@ The underlying architecture follows a structured 6-step RAG process:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/LUMINA-AI.git
+   git clone https://github.com/ylmzrem/LUMINA-AI.git
    cd LUMINA-AI
    ```
 2. Install the required dependencies:
@@ -102,7 +102,7 @@ Sistem, 6 adımlı yapılandırılmış bir RAG sürecini takip eder:
 
 1. Projeyi bilgisayarınıza klonlayın:
    ```bash
-   git clone https://github.com/kullaniciadiniz/LUMINA-AI.git
+   git clone https://github.com/ylmzrem/LUMINA-AI.git
    cd LUMINA-AI
    ```
 2. Gerekli kütüphaneleri yükleyin:
