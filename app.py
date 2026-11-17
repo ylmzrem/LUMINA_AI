@@ -1227,13 +1227,13 @@ with tab_quiz:
             mp_earned = int(correct * 10 * q_diff["mult"])
             
             st.markdown(f"""
-            <div class="score-banner" style="position: relative;">
-                {"<div style='position: absolute; top: 15px; right: 20px; background: rgba(129,140,248,0.2); padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; color: #a5b4fc; border: 1px solid rgba(129,140,248,0.4);'>⏱️ Time: <b>" + time_str + "</b></div>" if "Exam" in active_mode else ""}
-                <div class="score-number">{emoji} {correct}/{total}</div>
-                <div class="score-label">{pct}% Accuracy · {active_mode}</div>
-                <div style="margin-top:0.5rem; font-size:0.85rem; color:#818cf8;">+{mp_earned} MP earned</div>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="score-banner" style="position: relative;">
+{"<div style='position: absolute; top: 15px; right: 20px; background: rgba(129,140,248,0.2); padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; color: #a5b4fc; border: 1px solid rgba(129,140,248,0.4);'>⏱️ Time: <b>" + time_str + "</b></div>" if "Exam" in active_mode else ""}
+<div class="score-number">{emoji} {correct}/{total}</div>
+<div class="score-label">{pct}% Accuracy · {active_mode}</div>
+<div style="margin-top:0.5rem; font-size:0.85rem; color:#818cf8;">+{mp_earned} MP earned</div>
+</div>
+""", unsafe_allow_html=True)
             
         st.markdown("<br>", unsafe_allow_html=True)
         if "ai_report" not in st.session_state:
@@ -1266,7 +1266,7 @@ with tab_quiz:
                         st.session_state.ai_report = response.text
                         st.rerun()
                     except Exception as e:
-                        st.error("Could not generate report at this time.")
+                        st.error(f"Could not generate report at this time. Error: {str(e)}")
 
         for i, q in enumerate(questions):
             with st.container():
